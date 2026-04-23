@@ -43,8 +43,7 @@
 		<powerMockVersion>2.0.7</powerMockVersion>
 		<hamcrestVersion>2.2</hamcrestVersion>
 		<mockitoVersion>3.5.11</mockitoVersion>
-		<argLine>-Xmx1024m --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.util.stream=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.xml/jdk.xml.internal=ALL-UNNAMED --add-opens=java.desktop/java.awt.font=ALL-UNNAMED</argLine>
-		<jacoco.skip>true</jacoco.skip>
+		<argLine>-Xmx1024m</argLine>
 		<jacocoVersion>0.8.12</jacocoVersion>
 		<openmrsAtomfeedVersion>2.6.2</openmrsAtomfeedVersion>
 		<atomfeed.version>1.10.1</atomfeed.version>
@@ -105,18 +104,44 @@
 						</excludes>
 					</configuration>
 				</plugin>
+				<plugin>
+					<groupId>org.jacoco</groupId>
+					<artifactId>jacoco-maven-plugin</artifactId>
+					<version>${jacocoVersion}</version>
+					<executions>
+						<execution>
+							<id>prepare-agent</id>
+							<phase>initialize</phase>
+							<goals>
+								<goal>prepare-agent</goal>
+							</goals>
+						</execution>
+						<execution>
+							<id>report</id>
+							<phase>verify</phase>
+							<goals>
+								<goal>report</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 		<plugins>
-						<plugin>
-					<groupId>org.sonatype.central</groupId>
-					<artifactId>central-publishing-maven-plugin</artifactId>
-					<version>0.7.0</version>
-					<extensions>true</extensions>
-					<configuration>
-						<publishingServerId>nexus-sonatype</publishingServerId>
-					</configuration>
-				</plugin>
+			<plugin>
+				<groupId>org.sonatype.central</groupId>
+				<artifactId>central-publishing-maven-plugin</artifactId>
+				<version>0.7.0</version>
+				<extensions>true</extensions>
+				<configuration>
+					<publishingServerId>nexus-sonatype</publishingServerId>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacocoVersion}</version>
+			</plugin>
 		</plugins>
 <!--		<plugins>-->
 <!--			<plugin>-->
