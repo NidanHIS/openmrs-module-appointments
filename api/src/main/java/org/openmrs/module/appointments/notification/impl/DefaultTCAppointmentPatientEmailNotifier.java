@@ -65,14 +65,25 @@ public class DefaultTCAppointmentPatientEmailNotifier implements AppointmentEven
     public NotificationResult sendNotification(final Appointment appointment) throws NotificationException {
         Patient patient = appointment.getPatient();
         PersonAttribute patientEmailAttribute = patient.getPerson().getAttribute("email");
-        if (patientEmailAttribute != null) {
-            String patientEmail = patientEmailAttribute.getValue();
+        String patientEmail = null;
+        if (patientEmailAttribute != null && StringUtils.isNotBlank(patientEmailAttribute.getValue())) {
+            patientEmail = patientEmailAttribute.getValue();
+        } else if (StringUtils.isNotBlank(appointment.getPatientEmail())) {
+            patientEmail = appointment.getPatientEmail();
+        }
+
+        if (patientEmail != null) {
             String patientName = appointment.getPatient().getGivenName();
             String emailSubject = getEmailSubject();
             String emailBody = getEmailBody(patientName, appointment.getService(), appointment.getProviders(), appointment.getStartDateTime(), appointment.getTeleHealthVideoLink());
             try {
                 log.info("Sending mail through: " +  mailSender.getClass());
-                mailSender.send(emailSubject, emailBody, new String[] { patientEmail }, null, null);
+                String providerEmail = appointment.getProviderEmail();
+                if (StringUtils.isNotBlank(providerEmail)) {
+                    mailSender.send(emailSubject, emailBody, new String[] { patientEmail, providerEmail }, null, null);
+                } else {
+                    mailSender.send(emailSubject, emailBody, new String[] { patientEmail }, null, null);
+                }
                 return new NotificationResult("", "EMAIL", NotificationResult.SUCCESS_STATUS, EMAIL_SENT);
             } catch (Exception e) {
                 log.error(EMAIL_FAILURE, e);

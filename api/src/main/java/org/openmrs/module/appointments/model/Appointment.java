@@ -53,6 +53,8 @@ public class Appointment extends BaseOpenmrsData implements Serializable {
      * This attribute is not a entity property. Just a placeholder for the clients to prepare response relevant  to notification
      */
     private List<NotificationResult> notificationResults;
+    private String patientEmail;
+    private String providerEmail;
 
     public Set<AppointmentAudit> getAppointmentAudits() {
         return appointmentAudits;
@@ -284,6 +286,22 @@ public class Appointment extends BaseOpenmrsData implements Serializable {
 
     public void setReasons(Set<AppointmentReason> reasons) {
         this.reasons = reasons;
+    }
+
+    public String getPatientEmail() {
+        return patientEmail;
+    }
+
+    public void setPatientEmail(String patientEmail) {
+        this.patientEmail = patientEmail;
+    }
+
+    public String getProviderEmail() {
+        return providerEmail;
+    }
+
+    public void setProviderEmail(String providerEmail) {
+        this.providerEmail = providerEmail;
     }
 }
 

@@ -129,6 +129,8 @@ public class AppointmentMapper {
         }
         mapProvidersForAppointment(appointment, appointmentRequest.getProviders());
         mapReasonsForAppointment(appointment, appointmentRequest.getReasonConceptUuids());
+        appointment.setPatientEmail(appointmentRequest.getPatientEmail());
+        appointment.setProviderEmail(appointmentRequest.getProviderEmail());
     }
 
     private Provider identifyAppointmentProvider(String providerUuid) {

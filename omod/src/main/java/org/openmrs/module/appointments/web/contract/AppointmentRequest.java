@@ -25,6 +25,8 @@ public class AppointmentRequest {
     private List<AppointmentProviderDetail> providers = new ArrayList<>();
     private String priority;
     private List<String> reasonConceptUuids;
+    private String patientEmail;
+    private String providerEmail;
 
     public String getAppointmentNumber() {
         return appointmentNumber;
@@ -152,5 +154,21 @@ public class AppointmentRequest {
 
     public void setReasonConceptUuids(List<String> reasonConceptUuids) {
         this.reasonConceptUuids = reasonConceptUuids;
+    }
+
+    public String getPatientEmail() {
+        return patientEmail;
+    }
+
+    public void setPatientEmail(String patientEmail) {
+        this.patientEmail = patientEmail;
+    }
+
+    public String getProviderEmail() {
+        return providerEmail;
+    }
+
+    public void setProviderEmail(String providerEmail) {
+        this.providerEmail = providerEmail;
     }
 }
