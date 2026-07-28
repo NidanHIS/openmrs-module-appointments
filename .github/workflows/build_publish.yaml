@@ -13,17 +13,13 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-          server-id: nexus-sonatype
-          server-username: NEXUS_USERNAME
-          server-password: NEXUS_PASSWORD
-      - name: Build and deploy with Maven
+      - name: Build with Maven
+        # Disabled Maven deploy for Nidan fork — Bahmni Nexus secrets are upstream-only.
+        # Use `mvn package` to build the OMOD locally; deploy manually to Nidan artifact store.
         run: |
           PROJECT_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
           if [[ "$PROJECT_VERSION" == *"-SNAPSHOT" ]]; then
-            ./mvnw --no-transfer-progress clean -U deploy
+            ./mvnw --no-transfer-progress clean -U package
           else
             echo "❌ The current push is for release. So skipping build."
           fi
-        env:
-          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
-          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}

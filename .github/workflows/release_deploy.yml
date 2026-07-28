@@ -6,6 +6,9 @@ on:
   
 jobs:
   build-release-package:
+    # Disabled for Nidan fork — Bahmni Nexus/GPG secrets are upstream-only.
+    # Re-enable and wire to Nidan artifact store when a release pipeline is set up.
+    if: false
     name: Build and Release package
     runs-on: ubuntu-latest
     steps:
@@ -15,10 +18,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '8'
-          server-id: nexus-sonatype
-          server-username: NEXUS_USERNAME
-          server-password: NEXUS_PASSWORD
-          gpg-private-key: ${{ secrets.BAHMNI_INFRA_GPG_KEY }}
       - name: Compare Git tag with Maven version
         run: |
           export GIT_TAG=${GITHUB_REF#refs/tags/}
@@ -30,9 +29,5 @@ jobs:
             echo "✅ The Git tag matches the Maven version."
           fi
 
-      - name: Build and deploy with Maven
-        run: ./mvnw --no-transfer-progress clean -U deploy -DperformRelease=true
-        env:
-          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
-          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-          GPG_PASSPHRASE: ${{ secrets.BAHMNI_INFRA_GPG_PASSPHRASE }}
+      - name: Build with Maven (no deploy)
+        run: ./mvnw --no-transfer-progress clean -U package

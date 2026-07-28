@@ -32,7 +32,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(Context.class)
-@PowerMockIgnore( {"javax.*", "org.apache.*", "org.slf4j.*"} )
+@PowerMockIgnore({ "javax.*", "org.apache.*", "org.slf4j.*" })
 public class DefaultTeleconsultationAppointmentPatientEmailNotifierTest {
 
     private static final String BAHMNI_APPOINTMENT_TELE_CONSULTATION_EMAIL_NOTIFICATION_SUBJECT = "bahmni.appointment.teleConsultation.patientEmailNotificationSubject";
@@ -57,11 +57,16 @@ public class DefaultTeleconsultationAppointmentPatientEmailNotifierTest {
         mockStatic(Context.class);
         tcAppointmentEventNotifier = new DefaultTCAppointmentPatientEmailNotifier(mailSender);
         PowerMockito.when(Context.getAdministrationService()).thenReturn(administrationService);
-        when(administrationService.getGlobalProperty(BAHMNI_APPOINTMENT_TELE_CONSULTATION_EMAIL_NOTIFICATION_SUBJECT)).thenReturn("Email subject");
-        when(administrationService.getGlobalProperty(BAHMNI_APPOINTMENT_TELE_CONSULTATION_EMAIL_NOTIFICATION_TEMPLATE)).thenReturn("Email body");
-        when(administrationService.getGlobalProperty(BAHMNI_ADHOC_TELE_CONSULTATION_EMAIL_NOTIFICATION_SUBJECT)).thenReturn("Email subject");
-        when(administrationService.getGlobalProperty(BAHMNI_ADHOC_TELE_CONSULTATION_EMAIL_NOTIFICATION_TEMPLATE)).thenReturn("Email body");
-        when(administrationService.getGlobalProperty(BAHMNI_ADHOC_TELE_CONSULTATION_EMAIL_NOTIFICATION_BCC_EMAILS)).thenReturn("someemail1@gmail.com,someemail2@gmail.com");
+        when(administrationService.getGlobalProperty(BAHMNI_APPOINTMENT_TELE_CONSULTATION_EMAIL_NOTIFICATION_SUBJECT))
+                .thenReturn("Email subject");
+        when(administrationService.getGlobalProperty(BAHMNI_APPOINTMENT_TELE_CONSULTATION_EMAIL_NOTIFICATION_TEMPLATE))
+                .thenReturn("Email body");
+        when(administrationService.getGlobalProperty(BAHMNI_ADHOC_TELE_CONSULTATION_EMAIL_NOTIFICATION_SUBJECT))
+                .thenReturn("Email subject");
+        when(administrationService.getGlobalProperty(BAHMNI_ADHOC_TELE_CONSULTATION_EMAIL_NOTIFICATION_TEMPLATE))
+                .thenReturn("Email body");
+        when(administrationService.getGlobalProperty(BAHMNI_ADHOC_TELE_CONSULTATION_EMAIL_NOTIFICATION_BCC_EMAILS))
+                .thenReturn("someemail1@gmail.com,someemail2@gmail.com");
     }
 
     @Test
@@ -71,7 +76,7 @@ public class DefaultTeleconsultationAppointmentPatientEmailNotifierTest {
         verify(mailSender).send(
                 eq("Email subject"),
                 eq("Email body"),
-                AdditionalMatchers.aryEq(new String[]{ "someemail@gmail.com" }),
+                AdditionalMatchers.aryEq(new String[] { "someemail@gmail.com" }),
                 any(),
                 any());
     }
@@ -92,9 +97,9 @@ public class DefaultTeleconsultationAppointmentPatientEmailNotifierTest {
         verify(mailSender).send(
                 eq("Email subject"),
                 eq("Email body"),
-                AdditionalMatchers.aryEq(new String[]{ "someemail@gmail.com" }),
+                AdditionalMatchers.aryEq(new String[] { "someemail@gmail.com" }),
                 any(),
-                AdditionalMatchers.aryEq(new String[]{ "someemail1@gmail.com", "someemail2@gmail.com" }));
+                AdditionalMatchers.aryEq(new String[] { "someemail1@gmail.com", "someemail2@gmail.com" }));
     }
 
     private Appointment buildAppointment() {
