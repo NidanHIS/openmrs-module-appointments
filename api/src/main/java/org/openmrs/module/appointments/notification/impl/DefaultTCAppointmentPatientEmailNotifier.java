@@ -63,27 +63,36 @@ public class DefaultTCAppointmentPatientEmailNotifier implements AppointmentEven
 
     @Override
     public NotificationResult sendNotification(final Appointment appointment) throws NotificationException {
-        Patient patient = appointment.getPatient();
-        PersonAttribute patientEmailAttribute = patient.getPerson().getAttribute("email");
+        // 1. Resolve Patient Email (Payload FIRST, DB FALLBACK)
         String patientEmail = null;
-        if (patientEmailAttribute != null && StringUtils.isNotBlank(patientEmailAttribute.getValue())) {
-            patientEmail = patientEmailAttribute.getValue();
-        } else if (StringUtils.isNotBlank(appointment.getPatientEmail())) {
+        if (StringUtils.isNotBlank(appointment.getPatientEmail())) {
             patientEmail = appointment.getPatientEmail();
+        } else if (appointment.getPatient() != null && appointment.getPatient().getPerson() != null) {
+            PersonAttribute patientEmailAttribute = appointment.getPatient().getPerson().getAttribute("email");
+            if (patientEmailAttribute != null && StringUtils.isNotBlank(patientEmailAttribute.getValue())) {
+                patientEmail = patientEmailAttribute.getValue();
+            }
         }
 
-        if (patientEmail != null) {
-            String patientName = appointment.getPatient().getGivenName();
+        // 2. Resolve Provider Email
+        String providerEmail = appointment.getProviderEmail();
+
+        // 3. Build Recipient List
+        java.util.List<String> recipients = new java.util.ArrayList<>();
+        if (StringUtils.isNotBlank(patientEmail)) {
+            recipients.add(patientEmail);
+        }
+        if (StringUtils.isNotBlank(providerEmail)) {
+            recipients.add(providerEmail);
+        }
+
+        if (!recipients.isEmpty()) {
+            String patientName = (appointment.getPatient() != null) ? appointment.getPatient().getGivenName() : "";
             String emailSubject = getEmailSubject();
             String emailBody = getEmailBody(patientName, appointment.getService(), appointment.getProviders(), appointment.getStartDateTime(), appointment.getTeleHealthVideoLink());
             try {
-                log.info("Sending mail through: " +  mailSender.getClass());
-                String providerEmail = appointment.getProviderEmail();
-                if (StringUtils.isNotBlank(providerEmail)) {
-                    mailSender.send(emailSubject, emailBody, new String[] { patientEmail, providerEmail }, null, null);
-                } else {
-                    mailSender.send(emailSubject, emailBody, new String[] { patientEmail }, null, null);
-                }
+                log.info("Sending mail through: " + mailSender.getClass());
+                mailSender.send(emailSubject, emailBody, recipients.toArray(new String[0]), null, null);
                 return new NotificationResult("", "EMAIL", NotificationResult.SUCCESS_STATUS, EMAIL_SENT);
             } catch (Exception e) {
                 log.error(EMAIL_FAILURE, e);
