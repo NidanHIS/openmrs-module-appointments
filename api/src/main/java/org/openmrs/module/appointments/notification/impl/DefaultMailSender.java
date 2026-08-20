@@ -131,6 +131,7 @@ public class DefaultMailSender implements MailSender {
         p.put("mail.from", administrationService.getGlobalProperty("mail.from", ""));
         p.put("mail.user", administrationService.getGlobalProperty("mail.user", ""));
         p.put("mail.password", administrationService.getGlobalProperty("mail.password", ""));
+        p.put("mail.send", administrationService.getGlobalProperty("mail.send", "false"));
         //p.put("mail.smtp.ssl.trust", "smtp.gmail.com");
         return p;
     }
