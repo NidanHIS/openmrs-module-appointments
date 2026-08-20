@@ -35,6 +35,10 @@ public class TeleconsultationAppointmentService {
         return Context.getService(TeleconsultationService.class).generateTeleconsultationLink(uuid);
     }
 
+    public String generateTeleconsultationLink(String uuid, String providerHint) {
+        return Context.getService(TeleconsultationService.class).generateTeleconsultationLink(uuid, providerHint);
+    }
+
     public AdhocTeleconsultationResponse generateAdhocTeleconsultationLink(String patientUuid, String provider) {
         String identifierType = Context.getAdministrationService().getGlobalProperty(ADHOC_TC_ID);
         Patient patient = patientService.getPatientByUuid(patientUuid);

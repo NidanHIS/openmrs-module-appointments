@@ -27,6 +27,7 @@ public class AppointmentRequest {
     private List<String> reasonConceptUuids;
     private String patientEmail;
     private String providerEmail;
+    private String teleconsultationProvider;
 
     public String getAppointmentNumber() {
         return appointmentNumber;
@@ -170,5 +171,13 @@ public class AppointmentRequest {
 
     public void setProviderEmail(String providerEmail) {
         this.providerEmail = providerEmail;
+    }
+
+    public String getTeleconsultationProvider() {
+        return teleconsultationProvider;
+    }
+
+    public void setTeleconsultationProvider(String teleconsultationProvider) {
+        this.teleconsultationProvider = teleconsultationProvider;
     }
 }

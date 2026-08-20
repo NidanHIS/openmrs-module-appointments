@@ -131,6 +131,7 @@ public class AppointmentMapper {
         mapReasonsForAppointment(appointment, appointmentRequest.getReasonConceptUuids());
         appointment.setPatientEmail(appointmentRequest.getPatientEmail());
         appointment.setProviderEmail(appointmentRequest.getProviderEmail());
+        appointment.setTeleconsultationProvider(appointmentRequest.getTeleconsultationProvider());
     }
 
     private Provider identifyAppointmentProvider(String providerUuid) {

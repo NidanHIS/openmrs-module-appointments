@@ -55,6 +55,7 @@ public class Appointment extends BaseOpenmrsData implements Serializable {
     private List<NotificationResult> notificationResults;
     private String patientEmail;
     private String providerEmail;
+    private String teleconsultationProvider;
 
     public Set<AppointmentAudit> getAppointmentAudits() {
         return appointmentAudits;
@@ -302,6 +303,14 @@ public class Appointment extends BaseOpenmrsData implements Serializable {
 
     public void setProviderEmail(String providerEmail) {
         this.providerEmail = providerEmail;
+    }
+
+    public String getTeleconsultationProvider() {
+        return teleconsultationProvider;
+    }
+
+    public void setTeleconsultationProvider(String teleconsultationProvider) {
+        this.teleconsultationProvider = teleconsultationProvider;
     }
 }
 
