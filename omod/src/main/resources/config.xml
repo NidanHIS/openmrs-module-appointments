@@ -113,6 +113,11 @@
 		<description>Pattern of the URL for the meeting server. Notice the placeholder {0} for appointment UUID</description>
 	</globalProperty>
 	<globalProperty>
+		<property>mail.send</property>
+		<defaultValue>false</defaultValue>
+		<description>Master toggle for sending emails. Set to true to enable email dispatch via JavaMail SMTP.</description>
+	</globalProperty>
+	<globalProperty>
 		<property>bahmni.appointment.teleConsultation.sendEmail</property>
 		<defaultValue>false</defaultValue>
 		<description>Whether email should be sent for tele-consultation</description>

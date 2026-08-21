@@ -42,7 +42,9 @@ public abstract class AbstractRecurringAppointmentsService {
             appointment.setStartDateTime(appointmentDate.getLeft());
             appointment.setEndDateTime(appointmentDate.getRight());
             if (isVirtual(appointment)) {
-                appointment.setTeleHealthVideoLink(teleconsultationAppointmentService.generateTeleconsultationLink(appointment.getUuid()));
+                appointment.setTeleHealthVideoLink(
+                        teleconsultationAppointmentService.generateTeleconsultationLink(
+                                appointment.getUuid(), appointment.getTeleconsultationProvider()));
             }
             appointments.add(appointment);
         });

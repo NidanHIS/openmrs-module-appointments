@@ -30,7 +30,6 @@ import java.util.Properties;
 public class DefaultMailSender implements MailSender {
     private static final String EMAIL_PROPERTIES_FILENAME = "mail-config.properties";
     private Log log = LogFactory.getLog(this.getClass());
-    private volatile Session session = null;
 
     private AdministrationService administrationService;
 
@@ -41,9 +40,13 @@ public class DefaultMailSender implements MailSender {
     @Override
     public void send(String subject, String bodyText, String[] to, String[] cc, String[] bcc) {
         try {
-            MimeMessage mail = new MimeMessage(getSession());
-            if(!Objects.equals(mail.getSession().getProperty("mail.send"), "true")) return;
-            mail.setFrom(new InternetAddress(this.administrationService.getGlobalProperty("mail.from", "")));
+            // Build a fresh session on every send — picks up any file or DB property
+            // changes immediately without requiring a server restart.
+            Session session = buildSession();
+            MimeMessage mail = new MimeMessage(session);
+            if (!Objects.equals(session.getProperty("mail.send"), "true")) return;
+            String fromAddress = session.getProperty("mail.from");
+            mail.setFrom(new InternetAddress(fromAddress != null ? fromAddress : ""));
             Address[] toAddresses = new Address[1];
             toAddresses[0] = new InternetAddress(to[0]);
             mail.setRecipients(Message.RecipientType.TO, getAddresses(to));
@@ -87,31 +90,36 @@ public class DefaultMailSender implements MailSender {
         return new Address[0];
     }
 
-    private Session getSession() {
-        if (session == null) {
-            synchronized(this) {
-                if (session == null) {
-                    Properties sessionProperties = mailSessionPropertiesFromPath();
-                    if (sessionProperties == null) {
-                        log.info("Could not load mail properties from application data directory. Loading from OMRS settings.");
-                        sessionProperties = mailSessionPropertiesFromOMRS();
-                    }
-                    final String user = sessionProperties.getProperty("mail.user");
-                    final String password = sessionProperties.getProperty("mail.password");
-                    if (StringUtils.isNotBlank(user) && StringUtils.isNotBlank(password)) {
-                        session = Session.getInstance(sessionProperties, new Authenticator() {
-                            public PasswordAuthentication getPasswordAuthentication() {
-                                return new PasswordAuthentication(user, password);
-                            }
-                        });
-                    }
-                    else {
-                        session = Session.getInstance(sessionProperties);
-                    }
-                }
-            }
+    /**
+     * Builds a fresh {@link Session} on every call.
+     * <p>
+     * Property resolution order (highest priority first):
+     * <ol>
+     *   <li>{@code /openmrs/data/mail-config.properties} — flat file on the named Docker volume</li>
+     *   <li>OpenMRS Global Properties (DB) — fallback when the file is absent</li>
+     * </ol>
+     * Because no session is cached, any change to the file or to a DB Global Property
+     * is picked up immediately on the next {@link #send} call — no server restart required.
+     */
+    private Session buildSession() {
+        Properties sessionProperties = mailSessionPropertiesFromPath();
+        if (sessionProperties == null) {
+            log.info("Could not load mail properties from application data directory. Loading from OMRS settings.");
+            sessionProperties = mailSessionPropertiesFromOMRS();
         }
-        return session;
+        final String user = sessionProperties.getProperty("mail.user");
+        final String password = sessionProperties.getProperty("mail.password");
+        if (StringUtils.isNotBlank(user) && StringUtils.isNotBlank(password)) {
+            final Properties finalProps = sessionProperties;
+            return Session.getInstance(sessionProperties, new Authenticator() {
+                public PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication(
+                            finalProps.getProperty("mail.user"),
+                            finalProps.getProperty("mail.password"));
+                }
+            });
+        }
+        return Session.getInstance(sessionProperties);
     }
 
     /**
@@ -131,6 +139,7 @@ public class DefaultMailSender implements MailSender {
         p.put("mail.from", administrationService.getGlobalProperty("mail.from", ""));
         p.put("mail.user", administrationService.getGlobalProperty("mail.user", ""));
         p.put("mail.password", administrationService.getGlobalProperty("mail.password", ""));
+        p.put("mail.send", administrationService.getGlobalProperty("mail.send", "false"));
         //p.put("mail.smtp.ssl.trust", "smtp.gmail.com");
         return p;
     }
