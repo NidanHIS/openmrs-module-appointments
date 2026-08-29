@@ -100,6 +100,16 @@ public class NidanAppointmentPublisher {
 
     /** Queue this appointment for publication once the transaction has committed. */
     public void publishAfterCommit(final Appointment appointment) {
+        publishAfterCommit(appointment, false);
+    }
+
+    /**
+     * @param backfill true when this is the one-shot catch-up rather than a live save.
+     *     Carried on the wire so a consumer can tell a burst of history from a burst of
+     *     activity — the two look identical otherwise, and one of them is worth waking
+     *     somebody for.
+     */
+    public void publishAfterCommit(final Appointment appointment, final boolean backfill) {
         if (appointment == null || !enabled()) {
             return;
         }
@@ -110,7 +120,7 @@ public class NidanAppointmentPublisher {
                     + ": written by an account the middleware already publishes for");
             return;
         }
-        final String payload = toJson(appointment);
+        final String payload = toJson(appointment, backfill);
         final String uuid = appointment.getUuid();
 
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -179,6 +189,10 @@ public class NidanAppointmentPublisher {
      * ships into an OpenMRS distribution whose classpath is somebody else's to change.
      */
     String toJson(Appointment appointment) {
+        return toJson(appointment, false);
+    }
+
+    String toJson(Appointment appointment, boolean backfill) {
         StringBuilder sb = new StringBuilder(256);
         sb.append('{');
         field(sb, "appointment_uuid", appointment.getUuid());
@@ -189,6 +203,10 @@ public class NidanAppointmentPublisher {
         field(sb, "start_datetime_utc", utc(appointment.getStartDateTime()));
         field(sb, "end_datetime_utc", utc(appointment.getEndDateTime()));
         field(sb, "status", appointment.getStatus() == null ? null : appointment.getStatus().name());
+        field(sb, "date_changed", utc(appointment.getDateChanged() == null
+                ? appointment.getDateCreated()
+                : appointment.getDateChanged()));
+        sb.append("\"backfill\":").append(backfill).append(',');
         sb.append("\"voided\":").append(Boolean.TRUE.equals(appointment.getVoided()));
         sb.append('}');
         return sb.toString();

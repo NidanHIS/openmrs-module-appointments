@@ -173,4 +173,28 @@ public class NidanAppointmentPublisherTest {
         clinician.publishAfterCommit(anAppointment());
         assertTrue("a clinician's booking must reach the portal", clinician.submitted);
     }
+
+    @Test
+    public void aBackfilledPayloadSaysSo() {
+        // A consumer needs to tell a burst of history from a burst of activity. They
+        // look identical otherwise, and only one is worth waking somebody for.
+        Appointment appointment = new Appointment();
+        appointment.setUuid("a-1");
+
+        assertTrue(new NidanAppointmentPublisher().toJson(appointment, true).contains("\"backfill\":true"));
+        assertTrue(new NidanAppointmentPublisher().toJson(appointment, false).contains("\"backfill\":false"));
+    }
+
+    @Test
+    public void thePayloadCarriesWhenTheAppointmentLastChanged() {
+        // The consumer's deduplication key is built from this. Without it a second
+        // backfill looks like a set of new events and every document is rewritten for
+        // appointments that have not changed.
+        Appointment appointment = new Appointment();
+        appointment.setUuid("a-1");
+        appointment.setDateCreated(new java.util.Date(0L));
+
+        String json = new NidanAppointmentPublisher().toJson(appointment, true);
+        assertTrue(json, json.contains("\"date_changed\":\"1970-01-01T00:00:00Z\""));
+    }
 }
