@@ -251,6 +251,14 @@ public class NidanAppointmentPublisher {
         field(sb, "service_uuid", appointment.getService() == null ? null : appointment.getService().getUuid());
         field(sb, "location_uuid", appointment.getLocation() == null ? null : appointment.getLocation().getUuid());
         field(sb, "start_datetime_utc", utc(appointment.getStartDateTime()));
+        // Present only on the new half of a reschedule; null everywhere else. Read from
+        // the related appointment rather than from an audit row: the audit holds the old
+        // state but offers no path from the new appointment back to it, so joining them
+        // would mean guessing by patient and timestamp — and a wrong join tells a patient
+        // their appointment moved from a time it never had.
+        field(sb, "previous_start_datetime_utc", appointment.getRelatedAppointment() == null
+                ? null
+                : utc(appointment.getRelatedAppointment().getStartDateTime()));
         field(sb, "end_datetime_utc", utc(appointment.getEndDateTime()));
         field(sb, "status", appointment.getStatus() == null ? null : appointment.getStatus().name());
         // The clinician's own words, carried unchanged. A patient told their appointment

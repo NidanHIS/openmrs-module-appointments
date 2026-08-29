@@ -38,6 +38,50 @@ public class NidanAppointmentPublisherTest {
         assertEquals(null, NidanAppointmentPublisher.utc(null));
     }
 
+    /** ST-2.2.3 AC3 — a reschedule says what it moved from. */
+    @Test
+    public void aRescheduledAppointmentCarriesThePreviousStartTime() {
+        Appointment previous = new Appointment();
+        previous.setUuid("appt-old");
+        previous.setStartDateTime(utcDate(2026, Calendar.SEPTEMBER, 2, 9, 0));
+        previous.setStatus(AppointmentStatus.Cancelled);
+
+        Appointment moved = new Appointment();
+        moved.setUuid("appt-new");
+        moved.setStartDateTime(utcDate(2026, Calendar.SEPTEMBER, 3, 9, 0));
+        moved.setStatus(AppointmentStatus.Scheduled);
+        moved.setRelatedAppointment(previous);
+
+        String json = new NidanAppointmentPublisher().toJson(moved);
+
+        // Both halves, in one event. The two appointments also arrive as separate events
+        // (old Cancelled, new Scheduled) and nothing joins those for a consumer.
+        assertTrue(json, json.contains("\"previous_start_datetime_utc\":\"2026-09-02T09:00:00Z\""));
+        assertTrue(json, json.contains("\"start_datetime_utc\":\"2026-09-03T09:00:00Z\""));
+    }
+
+    @Test
+    public void anOrdinaryAppointmentCarriesNoPreviousStartTime() {
+        // Without this the test above passes for a publisher that emits the appointment's
+        // own start time as its previous one, which would tell every patient their
+        // appointment had moved from exactly where it already is.
+        Appointment appointment = new Appointment();
+        appointment.setUuid("appt-1");
+        appointment.setStartDateTime(utcDate(2026, Calendar.SEPTEMBER, 3, 9, 0));
+        appointment.setStatus(AppointmentStatus.Scheduled);
+
+        String json = new NidanAppointmentPublisher().toJson(appointment);
+
+        assertTrue(json, json.contains("\"previous_start_datetime_utc\":null"));
+    }
+
+    private static Date utcDate(int year, int month, int day, int hour, int minute) {
+        Calendar c = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        c.clear();
+        c.set(year, month, day, hour, minute, 0);
+        return c.getTime();
+    }
+
     @Test
     public void thePayloadCarriesTheFieldsTheReceiverRequires() {
         Appointment appointment = new Appointment();

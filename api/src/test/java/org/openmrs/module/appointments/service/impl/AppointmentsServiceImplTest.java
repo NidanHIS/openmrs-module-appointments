@@ -349,6 +349,48 @@ public class AppointmentsServiceImplTest {
                         anyListOf(AppointmentStatusChangeValidator.class));
     }
 
+    /**
+     * ST-2.2.3 AC3 — a reschedule records what it replaced.
+     *
+     * <p>The column has always existed and {@code SingleAppointmentRecurringPatternUpdateService}
+     * already sets it when one occurrence of a recurring appointment moves. Reschedule was
+     * the one operation that supersedes an appointment and did not say so, which left the
+     * new appointment with no way back to the time it replaced — the two halves reach a
+     * consumer as unrelated events (old Cancelled, new Scheduled).
+     */
+    @Test
+    public void rescheduleRecordsWhichAppointmentTheNewOneReplaced() {
+        Appointment previous = new Appointment();
+        previous.setUuid("appt-old");
+        previous.setStatus(AppointmentStatus.Scheduled);
+        when(appointmentDao.getAppointmentByUuid("appt-old")).thenReturn(previous);
+
+        Appointment moved = new Appointment();
+        moved.setStatus(AppointmentStatus.Scheduled);
+
+        appointmentsService.reschedule("appt-old", moved, false);
+
+        assertEquals(previous, moved.getRelatedAppointment());
+    }
+
+    @Test
+    public void rescheduleStillCancelsTheAppointmentItReplaced() {
+        // Guards the line above from being added in a way that skips the cancellation:
+        // an appointment that is related but still Scheduled is a double booking.
+        Appointment previous = new Appointment();
+        previous.setUuid("appt-old");
+        previous.setStatus(AppointmentStatus.Scheduled);
+        when(appointmentDao.getAppointmentByUuid("appt-old")).thenReturn(previous);
+
+        Appointment moved = new Appointment();
+        moved.setStatus(AppointmentStatus.Scheduled);
+
+        appointmentsService.reschedule("appt-old", moved, false);
+
+        assertEquals(AppointmentStatus.Cancelled, previous.getStatus());
+        assertEquals(AppointmentStatus.Scheduled, moved.getStatus());
+    }
+
     @Test
     public void shouldThrowExceptionIfValidationFailsOnStatusChange() {
         String errorMessage = "Appointment status cannot be changed from Completed to Missed";

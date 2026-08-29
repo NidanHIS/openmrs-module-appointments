@@ -425,6 +425,18 @@ public class AppointmentsServiceImpl implements AppointmentsService {
             if (retainAppointmentNumber) {
                 newAppointment.setAppointmentNumber(prevAppointment.getAppointmentNumber());
             }
+            // Record what this replaced. The column has always existed and every other
+            // path that supersedes an appointment already sets it — see
+            // SingleAppointmentRecurringPatternUpdateService, which does exactly this
+            // when one occurrence of a recurring appointment moves. Reschedule was the
+            // one operation that creates a related appointment and did not say so, which
+            // left the new appointment with no way back to the time it replaced.
+            //
+            // Needed by the portal: a patient told "moved to Wednesday" without being
+            // told what it moved from has to remember, and the two halves of a reschedule
+            // arrive as separate events (old Cancelled, new Scheduled) with nothing
+            // joining them.
+            newAppointment.setRelatedAppointment(prevAppointment);
             newAppointment.setStatus(AppointmentStatus.Scheduled);
             validateAndSave(newAppointment);
 
