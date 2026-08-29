@@ -5,8 +5,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -81,11 +83,64 @@ public class NidanAppointmentPublisher {
      * reporting system's illness. CallerRunsPolicy would be worse still: it hands the
      * work back to the thread that was saving the appointment, which is exactly the
      * blocking this class exists to avoid. So the policy is to discard, loudly.
+     *
+     * <p><b>The queue was fifty and the core size one, and both were wrong.</b> The
+     * identical arrangement in the encounter publisher dropped 37 of a hundred in a
+     * burst test. A core of one never grows, because a ThreadPoolExecutor only adds
+     * threads once the queue is full; five hundred entries of one short JSON string
+     * each costs a few hundred kilobytes.
      */
     private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(
-            1, 2, 60L, TimeUnit.SECONDS,
-            new ArrayBlockingQueue<Runnable>(50),
-            new ThreadPoolExecutor.DiscardPolicy());
+            2, 4, 60L, TimeUnit.SECONDS,
+            new ArrayBlockingQueue<Runnable>(500),
+            new DropAndWarn());
+
+    /** How many appointments have been dropped, and the last one, for tests and support. */
+    static final AtomicLong DROPPED = new AtomicLong();
+
+    static volatile String lastDropped;
+
+    /** The work, carrying enough identity to say what was lost when it is dropped. */
+    static final class PublishTask implements Runnable {
+
+        final String uuid;
+
+        private final String payload;
+
+        private final NidanAppointmentPublisher publisher;
+
+        PublishTask(NidanAppointmentPublisher publisher, String uuid, String payload) {
+            this.publisher = publisher;
+            this.uuid = uuid;
+            this.payload = payload;
+        }
+
+        @Override
+        public void run() {
+            publisher.post(uuid, payload);
+        }
+    }
+
+    /**
+     * Discard, but say which appointment was discarded.
+     *
+     * <p>The comment above already says a silent discard is indistinguishable from an
+     * appointment nobody booked. {@code DiscardPolicy} is exactly that silent discard,
+     * so it was the wrong class to have reached for. Naming the uuid makes the loss
+     * recoverable by hand.
+     */
+    static final class DropAndWarn implements RejectedExecutionHandler {
+
+        @Override
+        public void rejectedExecution(Runnable task, ThreadPoolExecutor executor) {
+            String uuid = task instanceof PublishTask ? ((PublishTask) task).uuid : "unknown";
+            DROPPED.incrementAndGet();
+            lastDropped = uuid;
+            log.warn("Nidan appointment publish queue is full; dropped appointment " + uuid
+                    + " (total dropped: " + DROPPED.get() + "). The appointment is saved; only the"
+                    + " portal notification was lost.");
+        }
+    }
 
     private final CloseableHttpClient httpClient;
 
@@ -139,22 +194,17 @@ public class NidanAppointmentPublisher {
 
     void submit(final String uuid, final String payload) {
         final int queued = EXECUTOR.getQueue().size();
-        EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-                post(uuid, payload);
-            }
-        });
-        if (queued >= 40) {
+        EXECUTOR.execute(new PublishTask(this, uuid, payload));
+        if (queued >= 400) {
             // Said before anything is dropped, not after. A queue that is filling is the
             // only warning available that the next appointment will be discarded, and a
             // silent discard is indistinguishable from an appointment nobody booked.
             log.warn("Nidan appointment publish queue is at " + queued
-                    + " of 50; appointments will be dropped if the middleware does not recover");
+                    + " of 500; appointments will be dropped if the middleware does not recover");
         }
     }
 
-    private void post(String uuid, String payload) {
+    void post(String uuid, String payload) {
         CloseableHttpResponse response = null;
         try {
             HttpPost request = new HttpPost(url());
