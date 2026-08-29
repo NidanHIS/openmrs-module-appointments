@@ -53,6 +53,24 @@ public class NidanAppointmentPublisher {
     public static final String GP_URL = "nidan.appointment.sync.url";
     public static final String GP_SECRET = "nidan.appointment.sync.secret";
 
+    /**
+     * Accounts whose writes are already known to the middleware, comma-separated.
+     *
+     * <p>The middleware writes Odoo's appointments into OpenMRS. Those saves trip this
+     * advice like any other, so without this the same appointment reaches the portal
+     * twice — once as the Odoo booking it is, and once as an OpenMRS booking it is not,
+     * under a different identity, appearing to the patient as two appointments for one
+     * slot.
+     *
+     * <p>The account name is the signal because it is the only one available: the write
+     * arrives over the ordinary REST API and carries nothing else to distinguish it. CIS
+     * already names this account {@code openmrs-sync-username} in its own configuration
+     * for the same purpose, and its comment there says to keep the two the same.
+     */
+    public static final String GP_IGNORE_USERS = "nidan.appointment.sync.ignoreUsers";
+
+    private static final String DEFAULT_IGNORE_USERS = "nidan-sync";
+
     private static final String DEFAULT_URL = "http://nidan-cis:8081/openmrs/appointment-sync";
 
     /**
@@ -85,6 +103,13 @@ public class NidanAppointmentPublisher {
         if (appointment == null || !enabled()) {
             return;
         }
+        if (writtenByTheMiddleware()) {
+            // Already on the topic, from the system that owns it. Publishing again would
+            // put two appointments on a patient's screen for one slot.
+            log.debug("skipping appointment " + appointment.getUuid()
+                    + ": written by an account the middleware already publishes for");
+            return;
+        }
         final String payload = toJson(appointment);
         final String uuid = appointment.getUuid();
 
@@ -102,7 +127,7 @@ public class NidanAppointmentPublisher {
         });
     }
 
-    private void submit(final String uuid, final String payload) {
+    void submit(final String uuid, final String payload) {
         final int queued = EXECUTOR.getQueue().size();
         EXECUTOR.execute(new Runnable() {
             @Override
@@ -195,6 +220,33 @@ public class NidanAppointmentPublisher {
         return iso.format(date);
     }
 
+    /** Did this save come from the middleware writing somebody else's appointment in? */
+    boolean writtenByTheMiddleware() {
+        String current = currentUsername();
+        if (current == null || current.trim().isEmpty()) {
+            return false;
+        }
+        for (String ignored : globalProperty(GP_IGNORE_USERS, DEFAULT_IGNORE_USERS).split(",")) {
+            if (ignored.trim().equalsIgnoreCase(current.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Overridable so the guard can be tested without an OpenMRS session. */
+    String currentUsername() {
+        try {
+            return Context.getAuthenticatedUser() == null
+                    ? null
+                    : Context.getAuthenticatedUser().getUsername();
+        } catch (Exception e) {
+            // No session to ask — during startup, or in a test. Publishing is the safer
+            // answer: a missed appointment is worse for a patient than a duplicate.
+            return null;
+        }
+    }
+
     private boolean enabled() {
         return "true".equalsIgnoreCase(globalProperty(GP_ENABLED, "false"));
     }
@@ -207,7 +259,7 @@ public class NidanAppointmentPublisher {
         return globalProperty(GP_SECRET, "");
     }
 
-    private String globalProperty(String name, String fallback) {
+    String globalProperty(String name, String fallback) {
         try {
             String value = Context.getAdministrationService().getGlobalProperty(name);
             return value == null || value.trim().isEmpty() ? fallback : value.trim();

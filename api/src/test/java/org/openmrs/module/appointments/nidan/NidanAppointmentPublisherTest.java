@@ -1,6 +1,7 @@
 package org.openmrs.module.appointments.nidan;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Calendar;
@@ -67,5 +68,109 @@ public class NidanAppointmentPublisherTest {
         assertTrue(json, json.contains("\"provider_uuid\":null"));
         assertTrue(json, json.contains("\"location_uuid\":null"));
         assertTrue(json, json.contains("\"start_datetime_utc\":null"));
+    }
+
+    @Test
+    public void aWriteByTheIntegrationAccountIsNotRepublished() {
+        // The middleware writes Odoo's appointments into OpenMRS over the ordinary REST
+        // API, which trips this advice like any other save. Without the guard the same
+        // appointment reaches the portal twice — once as the Odoo booking it is and once
+        // as an OpenMRS booking it is not, under a different identity, showing a patient
+        // two appointments for one slot.
+        NidanAppointmentPublisher publisher = new NidanAppointmentPublisher() {
+            @Override
+            String currentUsername() {
+                return "nidan-sync";
+            }
+
+            @Override
+            String globalProperty(String name, String fallback) {
+                return GP_IGNORE_USERS.equals(name) ? "nidan-sync" : fallback;
+            }
+        };
+        assertTrue(publisher.writtenByTheMiddleware());
+    }
+
+    @Test
+    public void anOrdinaryClinicianSaveIsPublished() {
+        NidanAppointmentPublisher publisher = new NidanAppointmentPublisher() {
+            @Override
+            String currentUsername() {
+                return "dr-sharma";
+            }
+
+            @Override
+            String globalProperty(String name, String fallback) {
+                return GP_IGNORE_USERS.equals(name) ? "nidan-sync" : fallback;
+            }
+        };
+        assertFalse(publisher.writtenByTheMiddleware());
+    }
+
+    @Test
+    public void anUnknownUserIsPublishedRatherThanDropped() {
+        // No session to ask. A missed appointment is worse for a patient than a
+        // duplicate, and the duplicate is at least visible to somebody.
+        NidanAppointmentPublisher publisher = new NidanAppointmentPublisher() {
+            @Override
+            String currentUsername() {
+                return null;
+            }
+        };
+        assertFalse(publisher.writtenByTheMiddleware());
+    }
+
+    /** Records whether the publish path was actually reached. */
+    private static class RecordingPublisher extends NidanAppointmentPublisher {
+        boolean submitted = false;
+        private final String username;
+
+        RecordingPublisher(String username) {
+            this.username = username;
+        }
+
+        @Override
+        String currentUsername() {
+            return username;
+        }
+
+        @Override
+        String globalProperty(String name, String fallback) {
+            if (GP_ENABLED.equals(name)) {
+                return "true";
+            }
+            return GP_IGNORE_USERS.equals(name) ? "nidan-sync" : fallback;
+        }
+
+        @Override
+        void submit(String uuid, String payload) {
+            submitted = true;
+        }
+    }
+
+    private static Appointment anAppointment() {
+        Appointment appointment = new Appointment();
+        appointment.setUuid("appt-echo");
+        Patient patient = new Patient();
+        patient.setUuid("pu-1001");
+        appointment.setPatient(patient);
+        return appointment;
+    }
+
+    @Test
+    public void theGuardIsActuallyWiredIntoThePublishPath() {
+        // Asserting the predicate alone was not enough: removing the call to it from
+        // publishAfterCommit left every test passing. A guard that is correct and not
+        // called is the same as no guard.
+        RecordingPublisher middleware = new RecordingPublisher("nidan-sync");
+        middleware.publishAfterCommit(anAppointment());
+        assertFalse("a middleware write must not be republished", middleware.submitted);
+    }
+
+    @Test
+    public void anOrdinarySaveStillReachesThePublishPath() {
+        RecordingPublisher clinician = new RecordingPublisher("dr-sharma");
+        clinician.publishAfterCommit(anAppointment());
+        assertTrue("a clinician's booking must reach the portal", clinician.submitted);
     }
 }
