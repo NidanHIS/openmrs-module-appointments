@@ -9,6 +9,7 @@ import org.openmrs.PersonAttribute;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.appointments.model.Appointment;
+import org.openmrs.module.appointments.nidan.PatientContact;
 import org.openmrs.module.appointments.service.AppointmentArgumentsMapper;
 import org.openmrs.module.appointments.service.AppointmentsService;
 import org.openmrs.scheduler.tasks.AbstractTask;
@@ -31,16 +32,21 @@ public class ReminderForAppointment extends AbstractTask {
         String schedulerReminderTime = administrationService.getGlobalPropertyObject("SchedulerReminderBeforeHours").getPropertyValue();
         List<Appointment> appointments = appointmentsService.getAllAppointmentsReminder(schedulerReminderTime);
         for (Appointment appointment: appointments) {
-            PersonAttribute phoneNumber = appointment.getPatient().getAttribute("phoneNumber");
+            String phoneNumber = PatientContact.phoneNumberOf(appointment.getPatient());
             if (null == phoneNumber) {
-                log.info("Since no mobile number found for the patient. SMS not sent.");
-                return;
+                // `continue`, not `return`. This is inside the loop over every
+                // appointment due a reminder, so returning here meant one patient with
+                // no number recorded silently cancelled the reminders for everybody
+                // after them in the batch — and the log line blamed that one patient.
+                log.info("No mobile number recorded for the patient of appointment "
+                        + appointment.getUuid() + "; skipping this reminder.");
+                continue;
             }
             MessageBuilderService smsBuilderService =Context.getService(MessageBuilderService.class);
             AppointmentArgumentsMapper appointmentArgumentsMapper=Context.getService(AppointmentArgumentsMapper.class);
             String message = smsBuilderService.getAppointmentReminderMessage(appointmentArgumentsMapper.createArgumentsMapForAppointmentBooking(appointment),appointmentArgumentsMapper.getProvidersNameInString(appointment));
             CommunicationService communicationService=Context.getService(CommunicationService.class);
-            communicationService.sendSMS(phoneNumber.getValue(), message);
+            communicationService.sendSMS(phoneNumber, message);
         }
     }
 }

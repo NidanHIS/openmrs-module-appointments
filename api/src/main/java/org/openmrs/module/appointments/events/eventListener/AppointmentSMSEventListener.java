@@ -11,6 +11,7 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.appointments.events.AppointmentEventType;
 import org.openmrs.module.appointments.service.AppointmentArgumentsMapper;
 import org.openmrs.module.appointments.model.Appointment;
+import org.openmrs.module.appointments.nidan.PatientContact;
 import org.openmrs.module.appointments.events.AppointmentBookingEvent;
 import org.openmrs.module.appointments.events.RecurringAppointmentEvent;
 import org.openmrs.util.PrivilegeConstants;
@@ -91,12 +92,11 @@ public class AppointmentSMSEventListener {
         }
     }
     private String getPhoneNumber(Patient patient) {
-        PersonAttribute phoneNumber = patient.getAttribute("phoneNumber");
+        String phoneNumber = PatientContact.phoneNumberOf(patient);
         if (phoneNumber == null) {
-            log.info("No mobile number found for the patient. SMS not sent.");
-            return null;
+            log.info("No mobile number recorded for the patient. SMS not sent.");
         }
-        return phoneNumber.getValue();
+        return phoneNumber;
     }
 }
 
