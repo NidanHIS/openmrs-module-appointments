@@ -203,6 +203,10 @@ public class NidanAppointmentPublisher {
         field(sb, "start_datetime_utc", utc(appointment.getStartDateTime()));
         field(sb, "end_datetime_utc", utc(appointment.getEndDateTime()));
         field(sb, "status", appointment.getStatus() == null ? null : appointment.getStatus().name());
+        // The clinician's own words, carried unchanged. A patient told their appointment
+        // was cancelled deserves the reason the hospital actually recorded, not a code
+        // the portal would have to translate and could translate wrongly.
+        field(sb, "reason", escape(appointment.getComments()));
         field(sb, "date_changed", utc(appointment.getDateChanged() == null
                 ? appointment.getDateCreated()
                 : appointment.getDateChanged()));
@@ -210,6 +214,46 @@ public class NidanAppointmentPublisher {
         sb.append("\"voided\":").append(Boolean.TRUE.equals(appointment.getVoided()));
         sb.append('}');
         return sb.toString();
+    }
+
+    /**
+     * The only field here that is free text, and therefore the only one that can break
+     * the JSON. A clinician typing a quote or a newline into a cancellation reason must
+     * not produce a payload the middleware cannot parse — it would fail every appointment
+     * from that moment until somebody edited the comment.
+     */
+    static String escape(String value) {
+        if (value == null) {
+            return null;
+        }
+        StringBuilder out = new StringBuilder(value.length() + 16);
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            switch (c) {
+                case '"':
+                    out.append("\\\"");
+                    break;
+                case '\\':
+                    out.append("\\\\");
+                    break;
+                case '\n':
+                    out.append("\\n");
+                    break;
+                case '\r':
+                    out.append("\\r");
+                    break;
+                case '\t':
+                    out.append("\\t");
+                    break;
+                default:
+                    if (c < 0x20) {
+                        out.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        out.append(c);
+                    }
+            }
+        }
+        return out.toString();
     }
 
     private static void field(StringBuilder sb, String name, String value) {

@@ -197,4 +197,29 @@ public class NidanAppointmentPublisherTest {
         String json = new NidanAppointmentPublisher().toJson(appointment, true);
         assertTrue(json, json.contains("\"date_changed\":\"1970-01-01T00:00:00Z\""));
     }
+
+    @Test
+    public void theCancellationReasonIsCarriedVerbatim() {
+        Appointment appointment = new Appointment();
+        appointment.setUuid("a-1");
+        appointment.setStatus(AppointmentStatus.Cancelled);
+        appointment.setComments("patient request");
+
+        String json = new NidanAppointmentPublisher().toJson(appointment);
+
+        assertTrue(json, json.contains("\"status\":\"Cancelled\""));
+        assertTrue(json, json.contains("\"reason\":\"patient request\""));
+    }
+
+    @Test
+    public void aQuoteInTheReasonDoesNotBreakThePayload() {
+        // The only free-text field on the wire, and therefore the only one that can
+        // produce JSON the middleware cannot parse. A clinician typing a quote would
+        // otherwise fail every appointment from that moment until somebody found and
+        // edited the comment.
+        assertEquals("she said \\\"not this week\\\"",
+                NidanAppointmentPublisher.escape("she said \"not this week\""));
+        assertEquals("line one\\nline two", NidanAppointmentPublisher.escape("line one\nline two"));
+        assertEquals(null, NidanAppointmentPublisher.escape(null));
+    }
 }
