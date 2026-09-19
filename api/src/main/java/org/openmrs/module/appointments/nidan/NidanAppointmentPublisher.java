@@ -73,7 +73,7 @@ public class NidanAppointmentPublisher {
 
     private static final String DEFAULT_IGNORE_USERS = "nidan-sync";
 
-    private static final String DEFAULT_URL = "http://nidan-cis:8081/openmrs/appointment-sync";
+    private static final String DEFAULT_URL = "http://nidan-cis:8081/internal/openmrs/appointment-sync";
 
     /**
      * Two threads, a queue of fifty, and callers never run the work themselves.
